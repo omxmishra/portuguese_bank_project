@@ -4,14 +4,14 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 
-# ---------------- PAGE CONFIG ----------------
+#PAGE CONFIG
 st.set_page_config(
     page_title="Bank Term Deposit Predictor",
     page_icon="💰",
     layout="wide"
 )
 
-# ---------------- LOAD MODEL ----------------
+#LOAD MODEL 
 model = joblib.load("bank_model.pkl")
 expected_columns = model.feature_names_in_
 
@@ -24,7 +24,7 @@ st.markdown("Predict whether a customer will subscribe to a term deposit.")
 
 st.divider()
 
-# ---------------- INPUT SECTION ----------------
+# INPUT SECTION 
 col1, col2 = st.columns(2)
 
 with col1:
