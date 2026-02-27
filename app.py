@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
-import numpy as np
 
 #PAGE CONFIG
 st.set_page_config(
@@ -11,20 +10,32 @@ st.set_page_config(
     layout="wide"
 )
 
-#LOAD MODEL 
+# LOAD MODEL
 model = joblib.load("bank_model.pkl")
 expected_columns = model.feature_names_in_
 
-# Extract components
 preprocessor = model.named_steps["preprocessor"]
-rf_model = model.named_steps["model"]
+gb_model = model.named_steps["model"]
 
 st.title("💰 Portuguese Bank Term Deposit Predictor")
 st.markdown("Predict whether a customer will subscribe to a term deposit.")
 
 st.divider()
 
-# INPUT SECTION 
+# THRESHOLD
+threshold = st.slider(
+    "Decision Threshold",
+    min_value=0.05,
+    max_value=0.50,
+    value=0.20,
+    step=0.01
+)
+
+st.caption(f"Current Threshold: {threshold:.2f}")
+
+st.divider()
+
+#INPUT SECTION 
 col1, col2 = st.columns(2)
 
 with col1:
@@ -81,7 +92,7 @@ with col2:
 
 st.divider()
 
-# ---------------- PREDICTION ----------------
+# PREDICTION 
 if st.button("🔮 Predict Subscription"):
 
     input_dict = {
@@ -113,54 +124,52 @@ if st.button("🔮 Predict Subscription"):
     input_data = pd.DataFrame([input_dict])
     input_data = input_data[expected_columns]
 
-    prediction = model.predict(input_data)[0]
     probability = model.predict_proba(input_data)[0][1]
 
     st.subheader("📈 Prediction Result")
-
     st.progress(float(probability))
 
-    if prediction == 1:
-        st.success(f"High likelihood of Subscription ({probability:.2%})")
-        st.info("💡 Recommendation: Prioritize this customer for follow-up.")
+    if probability >= threshold:
+        st.success(f"Above-threshold subscription likelihood ({probability:.2%})")
+        st.info("Recommendation: Prioritize this customer.")
     else:
-        st.error(f"Low likelihood of Subscription ({probability:.2%})")
-        st.info("💡 Recommendation: Consider deprioritizing this lead.")
+        st.error(f"Below-threshold subscription likelihood ({probability:.2%})")
+        st.info("Recommendation: Lower priority lead.")
 
     st.divider()
 
     # ---------------- FEATURE IMPORTANCE ----------------
     st.subheader("🔎 Top 10 Important Features")
 
-    # Get transformed feature names
     ohe = preprocessor.named_transformers_["cat"]
     cat_features = ohe.get_feature_names_out()
-
     num_features = preprocessor.transformers_[1][2]
-
     all_features = list(cat_features) + list(num_features)
 
-    importances = rf_model.feature_importances_
+    importances = gb_model.feature_importances_
 
     feature_importance_df = pd.DataFrame({
         "Feature": all_features,
         "Importance": importances
     }).sort_values(by="Importance", ascending=False).head(10)
 
-    fig, ax = plt.subplots(figsize=(6, 4))  # smaller width & height
+    # Smaller, cleaner graph
+    fig, ax = plt.subplots(figsize=(4.5, 2.8))
 
     ax.barh(
-    feature_importance_df["Feature"],
-    feature_importance_df["Importance"]
+        feature_importance_df["Feature"],
+        feature_importance_df["Importance"]
     )
 
     ax.invert_yaxis()
-    ax.set_xlabel("Importance")
-    ax.set_title("Top 10 Feature Importances")
+    ax.set_xlabel("Importance", fontsize=8)
+    ax.set_title("Top 10 Features", fontsize=9)
+    ax.tick_params(axis='y', labelsize=7)
+    ax.tick_params(axis='x', labelsize=7)
 
     plt.tight_layout()
 
     st.pyplot(fig)
 
     st.divider()
-    st.caption("Model: Random Forest inside Scikit-learn Pipeline")
+    st.caption("Model: Gradient Boosting inside Scikit-learn Pipeline")
